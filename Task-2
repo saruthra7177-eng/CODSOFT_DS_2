@@ -1,0 +1,63 @@
+import pandas as pd
+import numpy as np
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.ensemble import RandomForestRegressor
+from google.colab import files
+uploaded = files.upload()
+
+# Replace filename if different
+df = pd.read_excel("INDIAN MOVIE PREDICTION.xlsx")
+df.head()
+print(df.info())
+print(df.describe())
+# Drop rows with missing target values
+df = df.dropna(subset=['Rating'])
+
+# Fill missing categorical values
+df.fillna("Unknown", inplace=True)
+features = ['Genre', 'Director', 'Actor 1']
+target = 'Rating'
+
+X = df[features]
+y = df[target]
+label_encoders = {}
+
+for col in X.columns:
+    le = LabelEncoder()
+    # Use .loc to avoid SettingWithCopyWarning
+    X.loc[:, col] = le.fit_transform(X[col])
+    label_encoders[col] = le
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+model = RandomForestRegressor(
+    n_estimators=200,
+    random_state=42
+)
+
+model.fit(X_train, y_train)
+y_pred = model.predict(X_test)
+
+mse = mean_squared_error(y_test, y_pred)
+rmse = np.sqrt(mse)
+r2 = r2_score(y_test, y_pred)
+
+print("RMSE:", rmse)
+print("R² Score:", r2)
+new_movie = pd.DataFrame({
+    'Genre': ['Action'],
+    'Director': ['Christopher Nolan'],
+    'Actor 1': ['Leonardo DiCaprio']
+})
+
+for col in new_movie.columns:
+    le = label_encoders[col]
+    # Handle unseen labels by mapping them to 'Unknown' if 'Unknown' is a known class
+    new_movie[col] = new_movie[col].apply(lambda x: x if x in le.classes_ else 'Unknown')
+    new_movie[col] = le.transform(new_movie[col])
+
+predicted_rating = model.predict(new_movie)
+print("Predicted Rating:", predicted_rating[0])
